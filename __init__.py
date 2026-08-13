@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 from typing import Any
 
 try:
@@ -49,13 +50,19 @@ FJORD_SCORE_SCHEMA = {
 }
 
 
+def _err(exc: Exception) -> str:
+    return json.dumps(
+        {"ok": False, "error": str(exc), "version": scanner.__version__}
+    )
+
+
 def handle_fjord_scan(args: dict, **kwargs) -> str:
     del kwargs
     try:
         result = scanner.scan(args.get("hermes_home"))
         return json.dumps(result, indent=2, default=str)
     except Exception as e:
-        return json.dumps({"error": str(e)})
+        return _err(e)
 
 
 def handle_fjord_score(args: dict, **kwargs) -> str:
@@ -64,7 +71,7 @@ def handle_fjord_score(args: dict, **kwargs) -> str:
         result = scanner.score(hermes_home=args.get("hermes_home"))
         return json.dumps(result, indent=2, default=str)
     except Exception as e:
-        return json.dumps({"error": str(e)})
+        return _err(e)
 
 
 def _cli_fjord(args: Any) -> None:
@@ -72,7 +79,9 @@ def _cli_fjord(args: Any) -> None:
     import argparse
     import sys
 
-    parser = argparse.ArgumentParser(prog="hermes fjord", description="Hermes fjord structural audit")
+    parser = argparse.ArgumentParser(
+        prog="hermes fjord", description="Hermes fjord structural audit"
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
     p_scan = sub.add_parser("scan", help="Filesystem structural scan")
     p_scan.add_argument("--home", default=None, help="HERMES_HOME override")
@@ -80,36 +89,57 @@ def _cli_fjord(args: Any) -> None:
     p_score = sub.add_parser("score", help="Grade + recommendations")
     p_score.add_argument("--home", default=None)
     p_score.add_argument("--json", action="store_true")
-    p_self = sub.add_parser("selftest", help="Run package selftest")
+    sub.add_parser("selftest", help="Run package selftest")
+    sub.add_parser("version", help="Print plugin version")
 
     ns = parser.parse_args(args if isinstance(args, list) else None)
-    if ns.cmd == "scan":
-        data = scanner.scan(ns.home)
-        if ns.json:
-            print(json.dumps(data, indent=2, default=str))
-        else:
-            print(f"HERMES_HOME: {data['hermes_home']}")
-            print(f"Skills: {data['skills']['count']}")
-            print(f"Memory chars: {data['memory'].get('total_chars')}")
-            print(f"Plugins dirs: {data['plugins']['count']}")
-            print(f"Profiles: {data['profiles'].get('count')}")
-            print(f"Friction: {len(data['friction'])}")
-            for f in data["friction"]:
-                print(f"  [{f['severity']}] {f['id']}: {f['detail']}")
-    elif ns.cmd == "score":
-        data = scanner.score(hermes_home=ns.home)
-        if ns.json:
-            print(json.dumps(data, indent=2, default=str))
-        else:
-            print(data["summary"])
-            for r in data["recommendations"]:
-                print(f"  → {r}")
-    elif ns.cmd == "selftest":
-        from pathlib import Path
-        import subprocess
-        here = Path(__file__).resolve().parent
-        r = subprocess.run([sys.executable, "-m", "pytest", str(here / "tests"), "-q"], cwd=str(here))
-        raise SystemExit(r.returncode)
+    try:
+        if ns.cmd == "version":
+            print(scanner.__version__)
+            return
+        if ns.cmd == "scan":
+            data = scanner.scan(ns.home)
+            if ns.json:
+                print(json.dumps(data, indent=2, default=str))
+            else:
+                print(f"HERMES_HOME: {data['hermes_home']}")
+                print(f"Version: {data.get('version')}")
+                print(f"Skills: {data['skills']['count']}")
+                print(f"Memory chars: {data['memory'].get('total_chars')}")
+                print(f"Plugins dirs: {data['plugins']['count']}")
+                print(f"Profiles: {data['profiles'].get('count')}")
+                print(f"Friction: {len(data['friction'])}")
+                for f in data["friction"]:
+                    print(f"  [{f['severity']}] {f['id']}: {f['detail']}")
+            return
+        if ns.cmd == "score":
+            data = scanner.score(hermes_home=ns.home)
+            if ns.json:
+                print(json.dumps(data, indent=2, default=str))
+            else:
+                print(data["summary"])
+                for r in data["recommendations"]:
+                    print(f"  → {r}")
+            return
+        if ns.cmd == "selftest":
+            import subprocess
+
+            here = Path(__file__).resolve().parent
+            r = subprocess.run(
+                [sys.executable, "-m", "pytest", str(here / "tests"), "-q"],
+                cwd=str(here),
+            )
+            raise SystemExit(r.returncode)
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(_err(e), file=sys.stderr)
+        raise SystemExit(1)
+
+
+def _skill_dir():
+    p = Path(__file__).resolve().parent / "skills" / "hermes-fjord-audit"
+    return p if (p / "SKILL.md").is_file() else None
 
 
 def register(ctx):
@@ -138,23 +168,16 @@ def register(ctx):
             description="Filesystem-grounded Hermes home health scan and scoring",
         )
     except TypeError:
-        # Older PluginContext signatures
         try:
             ctx.register_cli_command("fjord", _cli_fjord)
         except Exception as e:
             logger.warning("fjord CLI registration skipped: %s", e)
-    skill = Path_skill()
+    skill = _skill_dir()
     if skill:
         try:
             ctx.register_skill(str(skill))
         except Exception as e:
             logger.debug("skill register: %s", e)
-
-
-def Path_skill():
-    from pathlib import Path
-    p = Path(__file__).resolve().parent / "skills" / "hermes-fjord-audit"
-    return p if (p / "SKILL.md").is_file() else None
 
 
 def _slash_fjord(raw: str) -> str:
@@ -167,4 +190,6 @@ def _slash_fjord(raw: str) -> str:
             home = parts[i + 1]
     if cmd == "scan":
         return handle_fjord_scan({"hermes_home": home})
+    if cmd == "version":
+        return json.dumps({"ok": True, "version": scanner.__version__})
     return handle_fjord_score({"hermes_home": home})

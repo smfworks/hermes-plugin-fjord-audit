@@ -17,3 +17,5 @@
 
 - Does not parse enabled-vs-disabled plugins from config.yaml yet.
 - Does not measure live prompt token cost (use `hermes prompt-size`).
+- 1.1.0 still treats `hermes_home` as trusted operator input (documented in SECURITY.md).
+- Score credits do not offset critical flags enough to mint an A from a missing config.

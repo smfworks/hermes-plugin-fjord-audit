@@ -1,43 +1,66 @@
 # hermes-plugin-fjord-audit
 
-Honest **structural** audit of a Hermes home/profile: skill sprawl, memory soft budgets, plugins, profiles, config, gateway file hints, and a graded score with recommendations.
+Honest **structural** audit of a Hermes home or profile: skill sprawl, memory soft budgets, plugin directories, profiles, a config snapshot, and a graded score with recommendations.
 
-Built during the SMF Works **Lofoten Sprint** (2026-08-12) by **Team Fjord**.
+Filesystem truth only. No network. No LLM.
+
+Current version: **1.1.0** (production-ready pass, 2026-08-13).
 
 ## Install
+
+`install` is not `enable`.
 
 ```bash
 hermes plugins install smfworks/hermes-plugin-fjord-audit
 hermes plugins enable fjord-audit
-# or copy this directory to ~/.hermes/plugins/fjord-audit
+# or copy this directory to ~/.hermes/plugins/fjord-audit and then enable
 ```
+
+Confirm with `hermes plugins list --plain`. Decline tool-override unless you intend to replace core tools.
+
+Optional YAML parser for richer `config.yaml` snapshots:
+
+```bash
+pip install 'hermes-plugin-fjord-audit[yaml]'
+# or: pip install PyYAML
+```
+
+Without PyYAML the scan still succeeds; `config.parse_error` is set.
 
 ## Usage
 
 ```bash
-# CLI (when plugin CLI registration is active)
 hermes fjord scan
+hermes fjord scan --home /path/to/profile --json
 hermes fjord score
+hermes fjord version
 hermes fjord selftest
-
-# As agent tools
-# fjord_scan / fjord_score
-
-# Slash
-# /fjord scan
-# /fjord score
 ```
 
-## Design
+Agent tools: `fjord_scan`, `fjord_score`.  
+Slash: `/fjord scan`, `/fjord score`, `/fjord version`.
 
-- **Filesystem truth only** for the plugin (pair with `hermes doctor` for network).
-- Prompt-cache safe: tools are additive; no mid-turn toolset swap required beyond normal enable.
-- Standalone plugin repo — not a core tree dump (Nous contribution policy).
+Tool handlers always return JSON. Failures use `{ok: false, error, version}` and never raise into the agent loop.
 
-## Tests
+## What it measures
+
+| Surface | Source of truth |
+|---------|-----------------|
+| Skills | `skills/**/SKILL.md` count, category, size >20KB |
+| Memory | `memories/MEMORY.md` and `USER.md` vs soft display budgets |
+| Plugins | directories under home/parent/`~/.hermes/plugins` |
+| Profiles | sibling or nested `profiles/` (junk names filtered) |
+| Config | existence + model/provider/max_turns/compression keys |
+| Gateway | pid/lock/state files; state JSON capped at 64KB |
+
+Pair with `hermes doctor` for connectivity. This plugin will not claim a profile is "online."
+
+## Develop
 
 ```bash
-cd hermes-plugin-fjord-audit && python -m pytest tests -q
+cd hermes-plugin-fjord-audit
+python -m pip install pytest PyYAML
+python -m pytest -q
 ```
 
 ## License
