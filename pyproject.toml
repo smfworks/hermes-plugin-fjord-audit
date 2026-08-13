@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-plugin-fjord-audit"
+version = "1.1.0"
+description = "Filesystem-grounded Hermes home/profile structural audit plugin"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "SMF Works"}]
+requires-python = ">=3.10"
+dependencies = []
+optional-dependencies = {yaml = ["PyYAML>=6.0"], dev = ["pytest>=8.0", "PyYAML>=6.0"]}
+
+[project.urls]
+Homepage = "https://github.com/smfworks/hermes-plugin-fjord-audit"
+Repository = "https://github.com/smfworks/hermes-plugin-fjord-audit"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

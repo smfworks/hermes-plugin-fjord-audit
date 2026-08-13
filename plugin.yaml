@@ -1,10 +1,12 @@
 name: fjord-audit
-version: 1.0.0
+version: 1.1.0
 description: >
   Honest Hermes platform/profile health scan — skills sprawl, memory
   pressure, plugins, gateway signals, and gap scoring. Named for the
   deep cut of a fjord: look inward before you sail out.
 author: SMF Works / Team Fjord (Lofoten Sprint 2026-08-12)
+homepage: https://github.com/smfworks/hermes-plugin-fjord-audit
+license: MIT
 provides_tools:
   - fjord_scan
   - fjord_score
