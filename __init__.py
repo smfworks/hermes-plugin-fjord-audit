@@ -172,8 +172,8 @@ def register(ctx):
         handler=handle_fjord_score,
     )
     ctx.register_command(
-        "fjord",
-        lambda raw: _slash_fjord(raw),
+        name="fjord",
+        handler=_slash_fjord,
         description="Fjord structural audit: scan | score",
     )
     try:
@@ -210,12 +210,17 @@ def register(ctx):
 
 def _slash_fjord(raw: str) -> str:
     parts = (raw or "").strip().split()
-    cmd = parts[0] if parts else "score"
     home = None
-    if "--home" in parts:
-        i = parts.index("--home")
-        if i + 1 < len(parts):
+    cmd = "score"
+    i = 0
+    while i < len(parts):
+        if parts[i] == "--home" and i + 1 < len(parts):
             home = parts[i + 1]
+            i += 2
+            continue
+        if parts[i] in {"scan", "score", "version"}:
+            cmd = parts[i]
+        i += 1
     if cmd == "scan":
         return handle_fjord_scan({"hermes_home": home})
     if cmd == "version":

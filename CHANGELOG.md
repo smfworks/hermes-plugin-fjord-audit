@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0 — 2026-08-13
+
+Oppositional gold pass.
+
+- Refuse `/etc` and other protected homes
+- Cap skill rglob at 10k
+- Critical friction floors grade at D
+- Slash no longer treats `--home` as a command
+
+
 ## 1.1.1 — 2026-08-13
 
 Lookout follow-up after Scout reports on the 1.0.0 tree.
