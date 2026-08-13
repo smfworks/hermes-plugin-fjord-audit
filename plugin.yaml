@@ -1,5 +1,5 @@
 name: fjord-audit
-version: 1.2.0
+version: 1.2.1
 description: >
   Honest Hermes platform/profile health scan — skills sprawl, memory
   pressure, plugins, gateway signals, and gap scoring. Named for the

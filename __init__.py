@@ -212,6 +212,7 @@ def _slash_fjord(raw: str) -> str:
     parts = (raw or "").strip().split()
     home = None
     cmd = "score"
+    unknown: list[str] = []
     i = 0
     while i < len(parts):
         if parts[i] == "--home" and i + 1 < len(parts):
@@ -220,7 +221,18 @@ def _slash_fjord(raw: str) -> str:
             continue
         if parts[i] in {"scan", "score", "version"}:
             cmd = parts[i]
+        else:
+            unknown.append(parts[i])
         i += 1
+    if unknown:
+        return json.dumps(
+            {
+                "ok": False,
+                "error": "usage: /fjord scan|score|version [--home PATH]",
+                "unknown": unknown,
+                "version": scanner.__version__,
+            }
+        )
     if cmd == "scan":
         return handle_fjord_scan({"hermes_home": home})
     if cmd == "version":
