@@ -6,13 +6,15 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 # Soft budgets used by Hermes UI injection (~2200 memory, ~1375 user typical display).
 # These are lab-observed display limits, not guaranteed upstream constants.
 SOFT_BUDGET = {"MEMORY.md": 2200, "USER.md": 1375}
 GATEWAY_STATE_MAX_BYTES = 64_000
 SEVERITY_WEIGHT = {"critical": 40, "high": 25, "medium": 12, "low": 5, "info": 0}
+SKILL_SCAN_CAP = 10_000
+_BLOCKED_PREFIXES = ("/etc", "/proc", "/sys", "/dev", "/root", "/boot")
 
 
 def resolve_hermes_home(explicit: Optional[str] = None) -> Path:
@@ -20,18 +22,32 @@ def resolve_hermes_home(explicit: Optional[str] = None) -> Path:
         raw = str(explicit)
         if "\x00" in raw:
             raise ValueError("invalid hermes_home path")
-        return Path(raw).expanduser().resolve()
+        return _guard_home(Path(raw).expanduser().resolve())
     env = os.environ.get("HERMES_HOME")
     if env:
         if "\x00" in env:
             raise ValueError("invalid HERMES_HOME")
-        return Path(env).expanduser().resolve()
+        return _guard_home(Path(env).expanduser().resolve())
     return (Path.home() / ".hermes").resolve()
+
+
+def _guard_home(p: Path) -> Path:
+    s = str(p)
+    if s == "/" or any(s == b or s.startswith(b + os.sep) for b in _BLOCKED_PREFIXES):
+        raise ValueError("refusing to scan a protected filesystem area")
+    return p
 
 
 def _count_skills(root: Path) -> Dict[str, Any]:
     skills_root = root / "skills"
-    files = list(skills_root.rglob("SKILL.md")) if skills_root.is_dir() else []
+    files: List[Path] = []
+    truncated = False
+    if skills_root.is_dir():
+        for f in skills_root.rglob("SKILL.md"):
+            files.append(f)
+            if len(files) >= SKILL_SCAN_CAP:
+                truncated = True
+                break
     by_cat: Dict[str, int] = {}
     oversized: List[Dict[str, Any]] = []
     for f in files:
@@ -50,6 +66,7 @@ def _count_skills(root: Path) -> Dict[str, Any]:
     oversized.sort(key=lambda x: -x["bytes"])
     return {
         "count": len(files),
+        "truncated": truncated,
         "by_category": dict(sorted(by_cat.items(), key=lambda kv: (-kv[1], kv[0]))),
         "oversized_gt_20k": oversized[:25],
     }
@@ -329,6 +346,8 @@ def score(
         if health >= 40
         else "F"
     )
+    if any(f.get("severity") == "critical" for f in friction) and grade in ("A", "B", "C"):
+        grade = "D"
     return {
         "ok": True,
         "version": __version__,

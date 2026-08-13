@@ -98,7 +98,7 @@ def test_score_grade_boundaries():
         "friction": [{"id": "missing_config", "severity": "critical"}],
     }
     s = score(fake)
-    assert s["grade"] == "C"
+    assert s["grade"] == "D"
     assert s["health_score"] == 60
 
 
@@ -154,6 +154,24 @@ def test_handler_error_envelope():
     assert raw["ok"] is False
     assert "error" in raw
     assert raw["version"] == __version__
+
+
+def test_refuse_etc_home():
+    try:
+        resolve_hermes_home("/etc")
+        assert False
+    except ValueError:
+        pass
+
+
+def test_slash_home_first_is_not_cmd(tmp_path):
+    home = tmp_path / "h"
+    home.mkdir()
+    (home / "config.yaml").write_text("model: x\n")
+    plug = _load_plugin()
+    raw = json.loads(plug._slash_fjord(f"--home {home} scan"))
+    assert raw["ok"] is True
+    assert raw["exists"] is True
 
 
 def test_slash_version():
