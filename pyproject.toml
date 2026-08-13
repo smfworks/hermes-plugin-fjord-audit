@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-plugin-fjord-audit"
-version = "1.1.0"
+version = "1.1.1"
 description = "Filesystem-grounded Hermes home/profile structural audit plugin"
 readme = "README.md"
 license = {text = "MIT"}

@@ -102,6 +102,20 @@ def test_score_grade_boundaries():
     assert s["health_score"] == 60
 
 
+def test_gateway_state_redacts_tokens(tmp_path):
+    home = tmp_path / "h"
+    home.mkdir()
+    (home / "gateway_state.json").write_text(
+        '{"status": "up", "pid": 9, "token": "secret-token-value", "api_key": "sk-x"}'
+    )
+    data = scan(str(home))
+    blob = json.dumps(data)
+    assert "secret-token-value" not in blob
+    assert "sk-x" not in blob
+    assert data["gateway"]["state"]["redacted"] is True
+    assert data["gateway"]["state"]["safe"]["status"] == "up"
+
+
 def test_gateway_state_too_large(tmp_path):
     home = tmp_path / "h"
     home.mkdir()

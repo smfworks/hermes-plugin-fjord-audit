@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 # Soft budgets used by Hermes UI injection (~2200 memory, ~1375 user typical display).
 # These are lab-observed display limits, not guaranteed upstream constants.
@@ -191,10 +191,34 @@ def _gateway_hint(root: Path) -> Dict[str, Any]:
             if size > GATEWAY_STATE_MAX_BYTES:
                 out["state_error"] = f"gateway_state.json too large ({size} bytes)"
             else:
-                out["state"] = json.loads(state.read_text(encoding="utf-8"))
+                raw = json.loads(state.read_text(encoding="utf-8"))
+                out["state"] = _redact_gateway_state(raw)
         except Exception as e:
             out["state_error"] = str(e)
     return out
+
+
+_GATEWAY_SAFE_KEYS = (
+    "status",
+    "pid",
+    "port",
+    "host",
+    "running",
+    "started_at",
+    "platform",
+    "profile",
+)
+
+
+def _redact_gateway_state(raw: Any) -> Dict[str, Any]:
+    if not isinstance(raw, dict):
+        return {"redacted": True, "note": "gateway_state.json is not an object"}
+    safe = {k: raw[k] for k in _GATEWAY_SAFE_KEYS if k in raw}
+    return {
+        "redacted": True,
+        "keys": sorted(str(k) for k in raw.keys()),
+        "safe": safe,
+    }
 
 
 def _friction_flags(scan: Dict[str, Any]) -> List[Dict[str, str]]:
