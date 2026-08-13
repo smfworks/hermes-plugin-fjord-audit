@@ -92,7 +92,7 @@ def _cli_fjord(args: Any) -> None:
     sub.add_parser("selftest", help="Run package selftest")
     sub.add_parser("version", help="Print plugin version")
 
-    ns = parser.parse_args(args if isinstance(args, list) else None)
+    ns = parser.parse_args(list(args) if isinstance(args, list) else [])
     try:
         if ns.cmd == "version":
             print(scanner.__version__)
@@ -142,6 +142,22 @@ def _skill_dir():
     return p if (p / "SKILL.md").is_file() else None
 
 
+def _cli_setup(subparser: Any) -> None:
+    subparser.add_argument("rest", nargs="*")
+
+
+def _cli_handler(ns: Any) -> int:
+    rest = list(getattr(ns, "rest", []) or [])
+    try:
+        _cli_fjord(rest)
+        return 0
+    except SystemExit as e:
+        code = e.code
+        if code is None:
+            return 0
+        return int(code) if not isinstance(code, int) else code
+
+
 def register(ctx):
     ctx.register_tool(
         name="fjord_scan",
@@ -162,22 +178,34 @@ def register(ctx):
     )
     try:
         ctx.register_cli_command(
-            "fjord",
-            _cli_fjord,
+            name="fjord",
             help="Hermes structural fjord audit (scan/score/selftest)",
+            setup_fn=_cli_setup,
+            handler_fn=_cli_handler,
             description="Filesystem-grounded Hermes home health scan and scoring",
         )
     except TypeError:
         try:
-            ctx.register_cli_command("fjord", _cli_fjord)
-        except Exception as e:
-            logger.warning("fjord CLI registration skipped: %s", e)
+            ctx.register_cli_command(
+                "fjord",
+                _cli_fjord,
+                help="Hermes structural fjord audit (scan/score/selftest)",
+                description="Filesystem-grounded Hermes home health scan and scoring",
+            )
+        except TypeError:
+            try:
+                ctx.register_cli_command("fjord", _cli_fjord)
+            except Exception as e:
+                logger.warning("fjord CLI registration skipped: %s", e)
     skill = _skill_dir()
     if skill:
         try:
-            ctx.register_skill(str(skill))
-        except Exception as e:
-            logger.debug("skill register: %s", e)
+            ctx.register_skill(name="hermes-fjord-audit", path=skill / "SKILL.md")
+        except TypeError:
+            try:
+                ctx.register_skill(str(skill))
+            except Exception as e:
+                logger.debug("skill register: %s", e)
 
 
 def _slash_fjord(raw: str) -> str:
