@@ -174,6 +174,13 @@ def test_slash_home_first_is_not_cmd(tmp_path):
     assert raw["exists"] is True
 
 
+def test_slash_unknown_does_not_scan_live_home():
+    plug = _load_plugin()
+    raw = json.loads(plug._slash_fjord("banana"))
+    assert raw["ok"] is False
+    assert "usage" in raw["error"]
+
+
 def test_slash_version():
     plug = _load_plugin()
     raw = json.loads(plug._slash_fjord("version"))
